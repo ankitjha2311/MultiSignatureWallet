@@ -4,129 +4,105 @@ pragma solidity ^0.8.9;
 
 import "../node_modules/@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./WalletInterface.sol";
-import "./AccessController.sol";
+
 contract AccessController {
     using SafeMath for uint256;
-
-    /**
-     * Events
-     */
-    event Deposit(address indexed sender, uint256 value);
-    event Submission(uint256 indexed transactionId);
-    event Confirmation(address indexed sender, uint256 indexed transactionId);
-    event Execution(uint256 indexed transactionId);
-    event ExecutionFailure(uint256 indexed transactionId);
-    event Revocation(address indexed sender, uint256 indexed transactionId);
-    event OwnerAddition(address indexed owner);
-    event OwnerRemoval(address indexed owner);
-    event QuorumUpdate(uint256 quorum);
-    event AdminTransfer(address indexed newAdmin);
-
-    /**
-     * Storage
-     */
     address public admin;
-
-    // track addresses of owners
     address[] public owners;
     mapping(address => bool) public isOwner;
-    uint256 quorum;
+    uint256 consensus;
 
-    /**
-     * Modifiers
-     */
-    modifier onlyAdmin() {
-        require(msg.sender == admin, "Admin restricted function");
-        _;
-    }
 
-    modifier notNull(address _address) {
-        require(_address != address(0), "Specified destination doesn't exist");
-        _;
-    }
+   // Modifiers
 
-    modifier ownerAlreadyExit(address owner) {
-        require(isOwner[owner] == true, "This owner doesn't exist");
-        _;
-    }
 
+   
     modifier notOwnerExistsMod(address owner) {
-        require(isOwner[owner] == false, "This owner already exists");
+        require(isOwner[owner] == false, "owner address does not exist");
+        _;
+    }
+    modifier ownerAlreadyExit(address owner) {
+        require(isOwner[owner] == true, "Wallet address already exist");
+        _;
+    }
+    modifier notNull(address _address) {
+        require(_address != address(0), "Invalid Address");
+        _;
+    }
+   
+     modifier onlyAdmin() {
+        require(msg.sender == admin, "Only Admin has the right to access this function");
         _;
     }
 
-    /**
-     * @dev Contract constructor instantiates wallet interface and sets msg.sender to admin
-     */
+   // Contract Events
+    event Deposit(address indexed sender, uint256 value);
+    event Submit(uint256 indexed txId);
+    event Confirm(address indexed sender, uint256 indexed txId);
+    event Execute(uint256 indexed txId);
+    event FailedExecution(uint256 indexed txId);
+    event RevokeTx(address indexed sender, uint256 indexed txId);
+    event AddOwner(address indexed owner);
+    event RemoveOwner(address indexed owner);
+    event UpdateConsent(uint256 consensus);
+    event AdminTransfer(address indexed newAdmin);
+
+  
+
+
+// constructor for access control
+
+
+
     constructor(address[] memory _owners) {
         admin = msg.sender;
         require(
             _owners.length >= 3,
-            "There need to be atleast 3 initial signatories for this wallet"
+            "For initialization need atlest 3 signators"
         );
         for (uint256 i = 0; i < _owners.length; i++) {
             isOwner[_owners[i]] = true;
         }
         owners = _owners;
         uint256 num = SafeMath.mul(owners.length, 60);
-        quorum = SafeMath.div(num, 100);
+        consensus = SafeMath.div(num, 100);
     }
 
-    /**
-     * Public Functions
-     */
+    
+// Add new owner only Admin can invoke it
 
-    /**
-     * @dev Allows admin to add new owner to the wallet
-     * @param owner Address of the new owner
-     */
     function addOwner(address owner)
         public
         onlyAdmin
         notNull(owner)
         notOwnerExistsMod(owner)
     {
-        // add owner
         isOwner[owner] = true;
         owners.push(owner);
-
-        // emit event
-        emit OwnerAddition(owner);
-
-        // update quorum
-        updateQuorum(owners);
+        emit AddOwner(owner);(owner);
+        updateConsensus(owners);
     }
 
-    /**
-     * @dev Allows admin to remove owner from the wallet
-     * @param owner Address of the new owner
-     */
+// Remove  owner only Admin can invoke it
     function removeOwner(address owner)
         public
         onlyAdmin
         notNull(owner)
         ownerAlreadyExit(owner)
     {
-        // remove owner
+        
         isOwner[owner] = false;
-
-        // iterate over owners and remove the current owner
-        for (uint256 i = 0; i < owners.length - 1; i++)
+         for (uint256 i = 0; i < owners.length - 1; i++)
             if (owners[i] == owner) {
                 owners[i] = owners[owners.length - 1];
                 break;
             }
         owners.pop();
-
-        // update quorum
-        updateQuorum(owners);
+        updateConsensus(owners);
     }
 
-    /**
-     * @dev Allows admin to transfer owner from one wallet to  another
-     * @param _from Address of the old owner
-     * @param _to Address of the new owner
-     */
+// Ownership tranfer by admin account
+
     function transferOwner(address _from, address _to)
         public
         onlyAdmin
@@ -135,74 +111,41 @@ contract AccessController {
         ownerAlreadyExit(_from)
         notOwnerExistsMod(_to)
     {
-        // iterate over owners
+       
         for (uint256 i = 0; i < owners.length; i++)
-            // if the curernt owner
             if (owners[i] == _from) {
-                // replace with new owner address
                 owners[i] = _to;
                 break;
             }
-
-        // reset owner addresses
         isOwner[_from] = false;
         isOwner[_to] = true;
-
-        // emit events
-        emit OwnerRemoval(_from);
-        emit OwnerAddition(_to);
+        emit RemoveOwner(_from);
+        emit AddOwner(_to);
     }
 
-    /**
-     * @dev Allows admin to transfer admin rights to another address
-     * @param newAdmin Address of the new admin
-     */
     function renounceAdmin(address newAdmin) public onlyAdmin {
         admin = newAdmin;
-
         emit AdminTransfer(newAdmin);
     }
 
-    /**
-     * Internal Functions
-     */
 
-    /**
-     * @dev Updates the new quorum value
-     * @param _owners List of address of the owners
-     */
-    function updateQuorum(address[] memory _owners) internal {
+    function updateConsensus(address[] memory _owners) internal {
         uint256 num = SafeMath.mul(_owners.length, 60);
-        quorum = SafeMath.div(num, 100);
-
-        emit QuorumUpdate(quorum);
+        consensus = SafeMath.div(num, 100);
+        emit UpdateConsent(consensus);
     }
 }
 
-// SPDX-License-Identifier: MIT
-
-pragma solidity ^0.8.9;
-
-import "../node_modules/@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "./WalletInterface.sol";
-import "./AccessController.sol";
 
 contract AccessControlWallet is AccessController {
     using SafeMath for uint256;
 
     WalletInterface _walletInterface;
 
-    /**
-     * @dev Contract constructor instantiates wallet interface and sets msg.sender to admin
-     */
     constructor(WalletInterface wallet_, address[] memory _owners) AccessController (_owners){
         _walletInterface = WalletInterface(wallet_);
         admin = msg.sender;
     }
-
-    /*
-     * Blockchain get functions
-     */
 
     function getOwners() external view returns (address[] memory) {
         return owners;

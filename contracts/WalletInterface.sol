@@ -3,40 +3,22 @@
 pragma solidity ^0.8.9;
 
 interface WalletInterface {
-    /**
-     * @dev Allows admin to add new owner to the wallet
-     * @param owner Address of the new owner
-     */
+ 
+ // Adds new owner in the multi singnature wallet. Accessed by admin only
     function addOwner(address owner) external;
 
-    /**
-     * @dev Allows admin to remove owner from the wallet
-     * @param owner Address of the new owner
-     */
+ // Removes owner in the multi singnature wallet. Accessed by admin only
     function removeOwner(address owner) external;
 
-    /**
-     * @dev Allows admin to transfer owner from one wallet to  another
-     * @param _from Address of the old owner
-     * @param _to Address of the new owner
-     */
+// Ownership transfer function. Accessed by admin only
     function transferOwner(address _from, address _to) external;
 
-    /**
-     * @dev Allows an owner to confirm a transaction.
-     * @param transactionId Transaction ID.
-     */
+// To confirm transaction by admin if multi singnature condition has been met
     function confirmTransaction(uint256 transactionId) external;
 
-    /**
-     * @dev Allows anyone to execute a confirmed transaction.
-     * @param transactionId Transaction ID.
-     */
+// Function to execute transaction, access by all 
     function executeTransaction(uint256 transactionId) external;
 
-    /**
-     * @dev Allows an owner to revoke a confirmation for a transaction.
-     * @param transactionId Transaction ID.
-     */
+// Function to revoke the transaction, access by all 
     function revokeTransaction(uint256 transactionId) external;
 }
