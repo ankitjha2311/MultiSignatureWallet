@@ -79,7 +79,7 @@ contract MultiSigWallet is AccessController {
 
       txId = transactionCount;
       transactions[txId] = Transaction({
-            destination: destination,
+            receiver: destination,
             value: value,
             data: data,
             executed: false
@@ -94,7 +94,7 @@ contract MultiSigWallet is AccessController {
         public
         isOwnerMod(msg.sender)
         isConfirmedMod(transactionId, msg.sender)
-        notNull(transactions[transactionId].destination)
+        notNull(transactions[transactionId].receiver)
     {
         confirmations[transactionId][msg.sender] = true;
         emit Confirm(msg.sender, transactionId);
@@ -121,7 +121,7 @@ contract MultiSigWallet is AccessController {
         if (consentReached) {
             Transaction storage txn = transactions[transactionId];
             txn.executed = true;
-            (bool success, ) = txn.destination.call{value: txn.value}(txn.data);
+            (bool success, ) = txn.receiver.call{value: txn.value}(txn.data);
             if (success) {
                 _validTransactions.push(txn);
                 emit Execute(transactionId);
@@ -137,7 +137,7 @@ contract MultiSigWallet is AccessController {
         isOwnerMod(msg.sender)
         isConfirmedMod(transactionId, msg.sender)
         isExecutedMod(transactionId)
-        notNull(transactions[transactionId].destination)
+        notNull(transactions[transactionId].receiver)
     {
         confirmations[transactionId][msg.sender] = false;
         emit RevokeTx(msg.sender, transactionId);
